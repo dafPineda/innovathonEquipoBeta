@@ -1,0 +1,29 @@
+{
+  "name": "orbita",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Orbita: el estudiante describe su problema académico a un chat de IA que lo conecta con el tutor adecuado",
+  "packageManager": "pnpm@11.1.2",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "pnpm --filter web dev",
+    "build": "pnpm --filter web build",
+    "start": "pnpm --filter web start",
+    "lint": "pnpm --filter web lint",
+    "check": "pnpm --filter web lint && pnpm --filter web build",
+    "api:dev": "pnpm --filter @beta/api dev",
+    "api:start": "pnpm --filter @beta/api start",
+    "api:test": "pnpm --filter @beta/api test",
+    "api:typecheck": "pnpm --filter @beta/api typecheck",
+    "credits:test": "pnpm --filter @beta/credits test",
+    "credits:typecheck": "pnpm --filter @beta/credits typecheck",
+    "db:migrate": "pnpm --filter @beta/db migrate",
+    "db:seed": "pnpm --filter @beta/db seed",
+    "db:typecheck": "pnpm --filter @beta/db typecheck"
+  },
+  "devDependencies": {
+    "typescript": "~5.9.3"
+  }
+}

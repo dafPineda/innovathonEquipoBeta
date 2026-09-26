@@ -1,0 +1,11 @@
+import { SignUp } from '@clerk/nextjs';
+
+// La traducción al español se configura una sola vez en el ClerkProvider
+// (src/app/layout.tsx). Aquí no se repite.
+export default function PaginaCrearCuenta() {
+  return (
+    <div className="flex min-h-screen items-center justify-center px-6">
+      <SignUp />
+    </div>
+  );
+}

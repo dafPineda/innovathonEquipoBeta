@@ -1,0 +1,3 @@
+Proyecto: Orbita, plataforma web donde estudiantes describen su problema académico a un chat de IA que los conecta con el tutor adecuado. Es la demo de un hackathon: prioriza que funcione sobre que sea perfecto.
+Stack: Next.js (App Router) + TypeScript + Tailwind. Autenticación con Clerk. Base de datos Postgres en AWS RDS con Prisma. IA con AWS Bedrock (modelo Claude, Converse API, SDK @aws-sdk/client-bedrock-runtime).
+Reglas: todo el texto de la interfaz en español. Variables secretas solo en .env.local, nunca en el código. Usa el id de usuario de Clerk como llave de los usuarios en la base de datos. Nada de pagos reales. Mantén el código simple y en pocas carpetas.

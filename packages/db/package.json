@@ -1,0 +1,28 @@
+{
+  "name": "@beta/db",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Acceso a Supabase: clientes, repositorios, tipos y scripts de datos",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run --passWithNoTests",
+    "migrate": "tsx scripts/migrate.ts",
+    "seed": "tsx src/seed.ts"
+  },
+  "dependencies": {
+    "@beta/credits": "workspace:*",
+    "@supabase/supabase-js": "^2.117.2",
+    "dotenv": "^18.0.4",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.3",
+    "tsx": "^4.23.15",
+    "typescript": "~5.9.3",
+    "vitest": "^5.0.2"
+  }
+}

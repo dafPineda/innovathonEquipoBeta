@@ -1,0 +1,20 @@
+{
+  "name": "@beta/credits",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Dominio puro de créditos simbólicos: reglas, tarifas y liquidación. Sin I/O.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "build": "tsc -p tsconfig.json"
+  },
+  "devDependencies": {
+    "typescript": "~5.9.3",
+    "vitest": "^5.0.2"
+  }
+}

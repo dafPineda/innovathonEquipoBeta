@@ -1,0 +1,9 @@
+packages:
+  - apps/*
+  - packages/*
+
+# Dependencias con script de build que sí necesitamos ejecutar.
+onlyBuiltDependencies:
+  - esbuild
+  - sharp
+  - unrs-resolver
