@@ -9,7 +9,9 @@ import {
   TUTOR_POR_ID,
   type Diagnostico,
 } from '@/lib/datos-demo';
-import { nuevaSolicitud, useAlmacenDemo, type SolicitudEnviada } from '@/lib/almacen';
+import { useAlmacenDemo } from '@/lib/almacen';
+import { hora, llamar, useConsulta } from '@/lib/api';
+import type { SolicitudEnviada } from '@/lib/tipos';
 import { Avatar, Boton, Etiqueta, Estrellas, Logo, Tarjeta } from '@/components/ui';
 import { claveConversacionActiva, Conversaciones } from '@/components/chat-sesion';
 
@@ -29,17 +31,20 @@ function nuevoId() {
 /** Cuántos mensajes necesita el asistente antes de diagnosticar. */
 const MENSAJES_PARA_DIAGNOSTICAR = 3;
 
-export function ChatAsistente() {
+export function ChatAsistente({ estudianteId }: { estudianteId: string }) {
   const [mensajes, setMensajes] = useState<Mensaje[]>([]);
   const [turno, setTurno] = useState(0);
   const [borrador, setBorrador] = useState('');
   const [pensando, setPensando] = useState(false);
   const finRef = useRef<HTMLDivElement>(null);
   const temporizadores = useRef<number[]>([]);
-  const { valor: solicitudes, setValor: setSolicitudes } = useAlmacenDemo<SolicitudEnviada[]>(
-    'solicitudes',
-    [],
-  );
+  // Solicitudes del estudiante, en la base. Se refrescan solas: cuando el tutor
+  // acepta, aquí cambia el estado y aparece el chat.
+  const { datos } = useConsulta<SolicitudEnviada[]>('/api/solicitudes', estudianteId);
+  const solicitudes = (datos ?? []).filter((s) => s.estudianteId === estudianteId);
+  // Evita mandar dos veces la misma solicitud con un doble clic.
+  const [enviandoA, setEnviandoA] = useState<string[]>([]);
+  const [fallo, setFallo] = useState<string | null>(null);
 
   const { setValor: setConversacion } = useAlmacenDemo<string>(claveConversacionActiva('estudiante'), '');
 
@@ -92,11 +97,13 @@ export function ChatAsistente() {
   }
 
   /** Una solicitud por tutor y por diagnóstico: un problema nuevo es una solicitud nueva. */
-  function pedirAyuda(mensajeId: string, tutorId: string) {
+  async function pedirAyuda(mensajeId: string, tutorId: string) {
     const tutor = TUTOR_POR_ID[tutorId];
     const indice = mensajes.findIndex((m) => m.id === mensajeId);
     const diagnostico = mensajes[indice]?.diagnostico;
     if (!tutor || !diagnostico) return;
+    const clave = `${mensajeId}|${tutorId}`;
+    if (enviandoA.includes(clave)) return;
     if (solicitudes.some((s) => s.tutorId === tutorId && s.origen === mensajeId)) return;
 
     // El tutor recibe todo lo que contó el estudiante hasta ese diagnóstico.
@@ -105,19 +112,21 @@ export function ChatAsistente() {
       .filter((m) => m.de === 'yo')
       .map((m) => m.texto)
       .join(' · ');
-    setSolicitudes((actuales) => [
-      ...actuales,
-      nuevaSolicitud({
+    setEnviandoA((previos) => [...previos, clave]);
+    try {
+      setFallo(null);
+      await llamar(estudianteId, '/api/solicitudes', 'POST', {
         tutorId: tutor.id,
-        tutorNombre: tutor.nombre,
-        tutorIniciales: tutor.iniciales,
-        tutorColor: tutor.color,
         origen: mensajeId,
         materia: diagnostico.materia,
         resumen: contado || 'Sin detalle',
         creditos: tutor.creditosPorHora,
-      }),
-    ]);
+      });
+    } catch (e) {
+      setFallo((e as Error).message);
+    } finally {
+      setEnviandoA((previos) => previos.filter((c) => c !== clave));
+    }
   }
 
   return (
@@ -165,7 +174,7 @@ export function ChatAsistente() {
           ) : null}
 
           {mensajes.map((m) => (
-            <Burbuja key={m.id} mensaje={m} enviados={solicitudes} onPedir={pedirAyuda} />
+            <Burbuja key={m.id} mensaje={m} enviados={solicitudes} enviando={enviandoA} onPedir={pedirAyuda} />
           ))}
 
           {pensando ? (
@@ -214,7 +223,13 @@ export function ChatAsistente() {
         </div>
       </Tarjeta>
 
-      {/* Solicitudes enviadas en esta demo */}
+      {fallo ? (
+        <p className="rounded-xl bg-rose-50 px-4 py-2.5 text-xs text-rose-700">
+          No se pudo enviar la solicitud: {fallo}
+        </p>
+      ) : null}
+
+      {/* Solicitudes del estudiante */}
       {solicitudes.length > 0 ? (
         <section className="space-y-3">
           <h2 className="text-sm font-semibold text-neutral-900">Tus solicitudes</h2>
@@ -230,7 +245,7 @@ export function ChatAsistente() {
                       <Etiqueta tono={s.estado === 'aceptada' ? 'verde' : 'ambar'}>
                         {s.estado === 'aceptada' ? 'Aceptada' : 'Esperando respuesta'}
                       </Etiqueta>
-                      <span className="text-[11px] text-neutral-400">{s.creadaEn}</span>
+                      <span className="text-[11px] text-neutral-400">{hora(s.creadaEn)}</span>
                       {s.estado === 'aceptada' ? (
                         <button
                           type="button"
@@ -252,6 +267,7 @@ export function ChatAsistente() {
       <Conversaciones
         solicitudes={solicitudes.filter((s) => s.estado === 'aceptada')}
         yo="estudiante"
+        usuarioId={estudianteId}
       />
     </div>
   );
@@ -260,10 +276,12 @@ export function ChatAsistente() {
 function Burbuja({
   mensaje,
   enviados,
+  enviando,
   onPedir,
 }: {
   mensaje: Mensaje;
   enviados: SolicitudEnviada[];
+  enviando: string[];
   onPedir: (mensajeId: string, tutorId: string) => void;
 }) {
   const mio = mensaje.de === 'yo';
@@ -291,6 +309,7 @@ function Burbuja({
           <TarjetaDiagnostico
             diagnostico={mensaje.diagnostico}
             enviados={enviados.filter((s) => s.origen === mensaje.id)}
+            enviando={enviando.filter((c) => c.startsWith(`${mensaje.id}|`)).map((c) => c.split('|')[1]!)}
             onPedir={(tutorId) => onPedir(mensaje.id, tutorId)}
           />
         ) : null}
@@ -302,10 +321,13 @@ function Burbuja({
 function TarjetaDiagnostico({
   diagnostico,
   enviados,
+  enviando,
   onPedir,
 }: {
   diagnostico: Diagnostico;
   enviados: SolicitudEnviada[];
+  /** Tutores a los que se está enviando ahora mismo. */
+  enviando: string[];
   onPedir: (tutorId: string) => void;
 }) {
   return (
@@ -337,6 +359,7 @@ function TarjetaDiagnostico({
           const tutor = TUTOR_POR_ID[t.id];
           if (!tutor) return null;
           const yaEnviada = enviados.some((s) => s.tutorId === t.id);
+          const enCurso = enviando.includes(t.id);
           return (
             <Tarjeta key={t.id} className="space-y-3">
               <div className="flex items-start gap-3">
@@ -379,11 +402,11 @@ function TarjetaDiagnostico({
 
               <Boton
                 variante={yaEnviada ? 'claro' : 'acento'}
-                disabled={yaEnviada}
+                disabled={yaEnviada || enCurso}
                 onClick={() => onPedir(t.id)}
                 className="w-full"
               >
-                {yaEnviada ? 'Solicitud enviada' : 'Solicitar ayuda'}
+                {yaEnviada ? 'Solicitud enviada' : enCurso ? 'Enviando…' : 'Solicitar ayuda'}
               </Boton>
             </Tarjeta>
           );

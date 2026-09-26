@@ -1,6 +1,8 @@
 'use client';
 
-import { useAlmacenDemo, type SolicitudEnviada } from '@/lib/almacen';
+import { useAlmacenDemo } from '@/lib/almacen';
+import { useConsulta } from '@/lib/api';
+import type { SolicitudEnviada } from '@/lib/tipos';
 import { TUTORES, TUTOR_POR_ID, type Tutor } from '@/lib/datos-demo';
 import { BandejaTutor } from '@/components/bandeja-tutor';
 import { Avatar, Etiqueta, Estrellas } from '@/components/ui';
@@ -14,12 +16,13 @@ import { Avatar, Etiqueta, Estrellas } from '@/components/ui';
  */
 export function PapelTutor() {
   const { valor: activo, setValor } = useAlmacenDemo<string>('tutor-activo', TUTORES[0]!.id);
-  const { valor: solicitudes } = useAlmacenDemo<SolicitudEnviada[]>('solicitudes', []);
   const tutor = TUTOR_POR_ID[activo] ?? TUTORES[0]!;
+  // `todas=1` (solo modo demo): las de todos los tutores, para los contadores.
+  const { datos: solicitudes } = useConsulta<SolicitudEnviada[]>('/api/solicitudes?todas=1', tutor.id);
 
   // Solicitudes sin responder por tutor, para ver de un vistazo a quién le llegó algo.
   const pendientes: Record<string, number> = {};
-  for (const s of solicitudes) {
+  for (const s of solicitudes ?? []) {
     if (s.estado === 'enviada') pendientes[s.tutorId] = (pendientes[s.tutorId] ?? 0) + 1;
   }
 
@@ -27,7 +30,7 @@ export function PapelTutor() {
     <div className="space-y-6">
       <SelectorTutor activo={tutor.id} pendientes={pendientes} onCambiar={setValor} />
       <PerfilTutor tutor={tutor} />
-      <BandejaTutor tutor={tutor} />
+      <BandejaTutor tutor={tutor} usuarioId={tutor.id} />
     </div>
   );
 }

@@ -1,68 +1,72 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { useAlmacenDemo, type SolicitudEnviada } from '@/lib/almacen';
+import { useAlmacenDemo } from '@/lib/almacen';
+import { hora, llamar, useConsulta } from '@/lib/api';
 import { TUTOR_POR_ID } from '@/lib/datos-demo';
+import type { Lado, MensajeSesion, SolicitudEnviada } from '@/lib/tipos';
 import { Avatar, Boton } from '@/components/ui';
-
-type Lado = 'estudiante' | 'tutor';
-
-type MensajeSesion = {
-  id: string;
-  de: Lado;
-  texto: string;
-  hora: string;
-};
 
 /**
  * Chat entre estudiante y tutor que se abre al aceptar una solicitud, para que
- * acuerden día y hora. Vive en localStorage (clave por solicitud), así que lo
- * que escribe uno lo ve el otro en otra pestaña al instante.
+ * acuerden día y hora. Los mensajes están en la base (tabla mensajes) y se
+ * refrescan cada dos segundos, así que lo que escribe uno le llega al otro.
  */
-export function ChatSesion({ solicitud, yo }: { solicitud: SolicitudEnviada; yo: Lado }) {
-  const { valor: mensajes, setValor: setMensajes } = useAlmacenDemo<MensajeSesion[]>(
-    `chat-${solicitud.id}`,
-    [],
-  );
+export function ChatSesion({
+  solicitud,
+  yo,
+  usuarioId,
+}: {
+  solicitud: SolicitudEnviada;
+  yo: Lado;
+  usuarioId: string;
+}) {
+  const url = `/api/solicitudes/${solicitud.id}/mensajes`;
+  const { datos: mensajes, error } = useConsulta<MensajeSesion[]>(url, usuarioId, 2000);
   const [borrador, setBorrador] = useState('');
+  const [enviando, setEnviando] = useState(false);
   const listaRef = useRef<HTMLDivElement>(null);
   const horarios = TUTOR_POR_ID[solicitud.tutorId]?.disponibles ?? [];
 
   useEffect(() => {
     const lista = listaRef.current;
     if (lista) lista.scrollTop = lista.scrollHeight;
-  }, [mensajes]);
+  }, [mensajes?.length]);
 
-  function enviar(texto: string) {
+  async function enviar(texto: string) {
     const limpio = texto.trim();
-    if (!limpio) return;
-    setMensajes((previos) => [
-      ...previos,
-      {
-        id: `${Date.now().toString(36)}-${previos.length}`,
-        de: yo,
-        texto: limpio,
-        hora: new Date().toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' }),
-      },
-    ]);
+    if (!limpio || enviando) return;
+    setEnviando(true);
     setBorrador('');
+    try {
+      await llamar(usuarioId, url, 'POST', { texto: limpio });
+    } catch {
+      setBorrador(limpio); // no se perdió: vuelve al cuadro para reintentar
+    } finally {
+      setEnviando(false);
+    }
   }
 
-  const otro = yo === 'tutor' ? 'el estudiante' : solicitud.tutorNombre.split(' ')[0];
+  const otroNombre = yo === 'tutor' ? solicitud.estudianteNombre : solicitud.tutorNombre;
+  const deQuien = (m: MensajeSesion): Lado => (m.autorId === solicitud.tutorId ? 'tutor' : 'estudiante');
 
   return (
     <div className="flex h-full min-h-0 flex-col">
       <div className="border-b border-neutral-100 px-4 py-3">
         <p className="text-sm font-semibold text-neutral-900">
-          {yo === 'tutor' ? 'Estudiante de la demo' : solicitud.tutorNombre} · {solicitud.materia}
+          {otroNombre} · {solicitud.materia}
         </p>
         <p className="mt-0.5 truncate text-xs text-neutral-500">
-          Chat con {otro} · pónganse de acuerdo en día y hora
+          Chat con {otroNombre.split(' ')[0]} · pónganse de acuerdo en día y hora
         </p>
       </div>
 
       <div ref={listaRef} className="min-h-0 flex-1 space-y-2 overflow-y-auto px-4 py-3">
-        {mensajes.length === 0 ? (
+        {error ? (
+          <p className="py-4 text-center text-xs text-rose-600">No se pudo cargar el chat: {error}</p>
+        ) : !mensajes ? (
+          <p className="py-4 text-center text-xs text-neutral-400">Cargando mensajes…</p>
+        ) : mensajes.length === 0 ? (
           <p className="py-4 text-center text-xs text-neutral-400">
             {yo === 'tutor'
               ? 'Saluda y propón un horario para la sesión.'
@@ -70,15 +74,16 @@ export function ChatSesion({ solicitud, yo }: { solicitud: SolicitudEnviada; yo:
           </p>
         ) : null}
 
-        {mensajes.map((m) => {
-          const mio = m.de === yo;
+        {(mensajes ?? []).map((m) => {
+          const de = deQuien(m);
+          const mio = de === yo;
           return (
             <div key={m.id} className={`flex items-end gap-2 ${mio ? 'justify-end' : ''}`}>
               {!mio ? (
-                m.de === 'tutor' ? (
+                de === 'tutor' ? (
                   <Avatar iniciales={solicitud.tutorIniciales} color={solicitud.tutorColor} tam="sm" />
                 ) : (
-                  <Avatar iniciales="ES" color="from-sky-400 to-blue-500" tam="sm" />
+                  <Avatar iniciales={solicitud.estudianteIniciales} color={solicitud.estudianteColor} tam="sm" />
                 )
               ) : null}
               <div
@@ -90,7 +95,7 @@ export function ChatSesion({ solicitud, yo }: { solicitud: SolicitudEnviada; yo:
               >
                 <p className="whitespace-pre-wrap">{m.texto}</p>
                 <p className={`mt-0.5 text-[10px] ${mio ? 'text-neutral-400' : 'text-neutral-500'}`}>
-                  {m.hora}
+                  {hora(m.enviadoEn)}
                 </p>
               </div>
             </div>
@@ -121,14 +126,14 @@ export function ChatSesion({ solicitud, yo }: { solicitud: SolicitudEnviada; yo:
           onKeyDown={(e) => {
             if (e.key === 'Enter' && !e.shiftKey) {
               e.preventDefault();
-              enviar(borrador);
+              void enviar(borrador);
             }
           }}
           rows={1}
           placeholder="Escribe un mensaje…"
           className="max-h-24 min-h-[2.5rem] flex-1 resize-none rounded-lg border border-neutral-200 px-3 py-2 text-sm outline-none transition placeholder:text-neutral-400 focus:border-marca-400 focus:ring-2 focus:ring-marca-100"
         />
-        <Boton variante="acento" onClick={() => enviar(borrador)} disabled={!borrador.trim()}>
+        <Boton variante="acento" onClick={() => enviar(borrador)} disabled={!borrador.trim() || enviando}>
           Enviar
         </Boton>
       </div>
@@ -143,7 +148,15 @@ export const claveConversacionActiva = (yo: Lado) => `conversacion-activa-${yo}`
  * Bandeja de conversaciones: columna con la lista a la izquierda y el chat
  * abierto a la derecha. En el móvil se apilan.
  */
-export function Conversaciones({ solicitudes, yo }: { solicitudes: SolicitudEnviada[]; yo: Lado }) {
+export function Conversaciones({
+  solicitudes,
+  yo,
+  usuarioId,
+}: {
+  solicitudes: SolicitudEnviada[];
+  yo: Lado;
+  usuarioId: string;
+}) {
   const { valor: activa, setValor: setActiva } = useAlmacenDemo<string>(claveConversacionActiva(yo), '');
   if (solicitudes.length === 0) return null;
 
@@ -159,13 +172,14 @@ export function Conversaciones({ solicitudes, yo }: { solicitudes: SolicitudEnvi
               key={s.id}
               solicitud={s}
               yo={yo}
+              usuarioId={usuarioId}
               seleccionada={s.id === abierta.id}
               onAbrir={() => setActiva(s.id)}
             />
           ))}
         </ul>
         <div className="h-[26rem] min-w-0 flex-1 md:h-auto">
-          <ChatSesion key={abierta.id} solicitud={abierta} yo={yo} />
+          <ChatSesion key={abierta.id} solicitud={abierta} yo={yo} usuarioId={usuarioId} />
         </div>
       </div>
     </section>
@@ -175,17 +189,18 @@ export function Conversaciones({ solicitudes, yo }: { solicitudes: SolicitudEnvi
 function ItemConversacion({
   solicitud,
   yo,
+  usuarioId,
   seleccionada,
   onAbrir,
 }: {
   solicitud: SolicitudEnviada;
   yo: Lado;
+  usuarioId: string;
   seleccionada: boolean;
   onAbrir: () => void;
 }) {
-  const { valor: mensajes } = useAlmacenDemo<MensajeSesion[]>(`chat-${solicitud.id}`, []);
-  const ultimo = mensajes[mensajes.length - 1];
-  const titulo = yo === 'tutor' ? 'Estudiante de la demo' : solicitud.tutorNombre;
+  const ultimo = solicitud.ultimoMensaje;
+  const titulo = yo === 'tutor' ? solicitud.estudianteNombre : solicitud.tutorNombre;
 
   return (
     <li>
@@ -198,17 +213,21 @@ function ItemConversacion({
         }`}
       >
         {yo === 'tutor' ? (
-          <Avatar iniciales="ES" color="from-sky-400 to-blue-500" tam="sm" />
+          <Avatar iniciales={solicitud.estudianteIniciales} color={solicitud.estudianteColor} tam="sm" />
         ) : (
           <Avatar iniciales={solicitud.tutorIniciales} color={solicitud.tutorColor} tam="sm" />
         )}
         <div className="min-w-0 flex-1">
           <div className="flex items-center justify-between gap-2">
             <p className="truncate text-sm font-medium text-neutral-900">{titulo}</p>
-            <span className="shrink-0 text-[10px] text-neutral-400">{ultimo?.hora ?? solicitud.creadaEn}</span>
+            <span className="shrink-0 text-[10px] text-neutral-400">
+              {hora(ultimo?.enviadoEn ?? solicitud.creadaEn)}
+            </span>
           </div>
           <p className="truncate text-xs text-neutral-500">
-            {ultimo ? `${ultimo.de === yo ? 'Tú: ' : ''}${ultimo.texto}` : `${solicitud.materia} · sin mensajes`}
+            {ultimo
+              ? `${ultimo.autorId === usuarioId ? 'Tú: ' : ''}${ultimo.texto}`
+              : `${solicitud.materia} · sin mensajes`}
           </p>
         </div>
       </button>

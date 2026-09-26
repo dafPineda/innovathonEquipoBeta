@@ -41,3 +41,6 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 .clerk/
+
+# Cliente de Prisma (se genera con `pnpm db:generate` / postinstall)
+/src/generated/

@@ -2,8 +2,8 @@
 
 import { useState } from 'react';
 import { useAlmacenDemo } from '@/lib/almacen';
+import { fecha, llamar, useConsulta } from '@/lib/api';
 import {
-  CURSOS_DEMO,
   MATERIAS,
   TUTORES,
   TUTOR_POR_ID,
@@ -25,28 +25,17 @@ export type Visitante = {
 
 const COLOR_TUTOR_CLERK = 'from-emerald-400 to-teal-500';
 
-function ahora() {
-  return new Date().toLocaleString('es', {
-    day: 'numeric',
-    month: 'short',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-}
-
-function idNuevo(prefijo: string) {
-  return `${prefijo}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
-}
+type DatosCurso = Pick<Curso, 'titulo' | 'descripcion' | 'materia' | 'modalidad' | 'cuando' | 'cupos' | 'creditos'>;
 
 /**
  * Muro de cursos: una red social pequeña donde los tutores publican clases y
  * todos pueden verlas, darles "me gusta", comentar e inscribirse.
  *
  * Solo los tutores ven el formulario de publicar: el rol lo decide el servidor
- * con Clerk. Los datos viven en localStorage como el resto de la demo.
+ * con Clerk, y la API vuelve a comprobarlo al guardar. Los datos están en la
+ * base (Supabase) y se refrescan solos cada pocos segundos.
  */
 export function MuroCursos({ visitante }: { visitante: Visitante }) {
-  const { valor: cursos, setValor: setCursos } = useAlmacenDemo<Curso[]>('cursos', CURSOS_DEMO);
   // En modo demo, el tutor "logueado" es el que se eligió en el panel del tutor.
   const { valor: tutorActivo, setValor: setTutorActivo } = useAlmacenDemo<string>(
     'tutor-activo',
@@ -61,31 +50,26 @@ export function MuroCursos({ visitante }: { visitante: Visitante }) {
       ? { id: tutorDemo.id, nombre: tutorDemo.nombre, iniciales: tutorDemo.iniciales, color: tutorDemo.color }
       : { id: visitante.id, nombre: visitante.nombre, iniciales: visitante.iniciales, color: COLOR_TUTOR_CLERK };
 
-  const visibles = cursos.filter((c) =>
+  const { datos: cursos, error, cargando } = useConsulta<Curso[]>('/api/cursos', yo.id, 5000);
+  const [fallo, setFallo] = useState<string | null>(null);
+
+  const visibles = (cursos ?? []).filter((c) =>
     filtro === 'todas' ? true : filtro === 'mios' ? c.tutorId === yo.id : c.materia === filtro,
   );
 
-  function actualizar(id: string, cambio: (curso: Curso) => Curso) {
-    setCursos((actuales) => actuales.map((c) => (c.id === id ? cambio(c) : c)));
+  /** Envuelve cada escritura: si la API falla, se enseña el motivo arriba. */
+  async function intentar(accion: () => Promise<unknown>) {
+    try {
+      setFallo(null);
+      await accion();
+    } catch (e) {
+      setFallo((e as Error).message);
+    }
   }
 
-  function publicar(datos: Pick<Curso, 'titulo' | 'descripcion' | 'materia' | 'modalidad' | 'cuando' | 'cupos' | 'creditos'>) {
+  async function publicar(datos: DatosCurso) {
     if (!esTutor) return; // solo los tutores crean cursos
-    setCursos((actuales) => [
-      {
-        ...datos,
-        id: idNuevo('c'),
-        tutorId: yo.id,
-        tutorNombre: yo.nombre,
-        tutorIniciales: yo.iniciales,
-        tutorColor: yo.color,
-        publicado: ahora(),
-        meGusta: [],
-        inscritos: [],
-        comentarios: [],
-      },
-      ...actuales,
-    ]);
+    await intentar(() => llamar(yo.id, '/api/cursos', 'POST', datos));
     setFiltro('todas');
   }
 
@@ -141,7 +125,15 @@ export function MuroCursos({ visitante }: { visitante: Visitante }) {
         ))}
       </div>
 
-      {visibles.length === 0 ? (
+      {fallo || error ? (
+        <p className="rounded-xl bg-rose-50 px-4 py-2.5 text-xs text-rose-700">
+          No se pudo {fallo ? 'guardar' : 'cargar los cursos'}: {fallo ?? error}
+        </p>
+      ) : null}
+
+      {cargando ? (
+        <Tarjeta className="text-center text-sm text-neutral-500">Cargando cursos…</Tarjeta>
+      ) : visibles.length === 0 ? (
         <Tarjeta className="text-center text-sm text-neutral-500">
           {filtro === 'mios' ? 'Aún no has publicado ningún curso.' : 'No hay cursos de esta materia todavía.'}
         </Tarjeta>
@@ -152,8 +144,10 @@ export function MuroCursos({ visitante }: { visitante: Visitante }) {
             curso={curso}
             yo={yo}
             esTutor={esTutor}
-            onCambiar={(cambio) => actualizar(curso.id, cambio)}
-            onBorrar={() => setCursos((actuales) => actuales.filter((c) => c.id !== curso.id))}
+            onAccion={(accion, texto) =>
+              intentar(() => llamar(yo.id, `/api/cursos/${curso.id}`, 'POST', { accion, texto }))
+            }
+            onBorrar={() => intentar(() => llamar(yo.id, `/api/cursos/${curso.id}`, 'DELETE'))}
           />
         ))
       )}
@@ -171,9 +165,7 @@ function NuevoCurso({
   onPublicar,
 }: {
   autor: Autor;
-  onPublicar: (
-    datos: Pick<Curso, 'titulo' | 'descripcion' | 'materia' | 'modalidad' | 'cuando' | 'cupos' | 'creditos'>,
-  ) => void;
+  onPublicar: (datos: DatosCurso) => Promise<void>;
 }) {
   const [abierto, setAbierto] = useState(false);
   const [titulo, setTitulo] = useState('');
@@ -186,10 +178,10 @@ function NuevoCurso({
 
   const valido = titulo.trim() && descripcion.trim() && cuando.trim() && cupos > 0;
 
-  function enviar(e: React.FormEvent) {
+  async function enviar(e: React.FormEvent) {
     e.preventDefault();
     if (!valido) return;
-    onPublicar({
+    await onPublicar({
       titulo: titulo.trim(),
       descripcion: descripcion.trim(),
       materia,
@@ -309,13 +301,13 @@ function PublicacionCurso({
   curso,
   yo,
   esTutor,
-  onCambiar,
+  onAccion,
   onBorrar,
 }: {
   curso: Curso;
   yo: Autor;
   esTutor: boolean;
-  onCambiar: (cambio: (curso: Curso) => Curso) => void;
+  onAccion: (accion: 'inscribir' | 'me-gusta' | 'comentar', texto?: string) => Promise<void>;
   onBorrar: () => void;
 }) {
   const [verComentarios, setVerComentarios] = useState(curso.comentarios.length > 0);
@@ -327,34 +319,20 @@ function PublicacionCurso({
   const libres = curso.cupos - curso.inscritos.length;
 
   function alternarMeGusta() {
-    onCambiar((c) => ({
-      ...c,
-      meGusta: c.meGusta.includes(yo.id) ? c.meGusta.filter((id) => id !== yo.id) : [...c.meGusta, yo.id],
-    }));
+    void onAccion('me-gusta');
   }
 
   function alternarInscripcion() {
-    onCambiar((c) => {
-      if (c.inscritos.some((i) => i.id === yo.id)) {
-        return { ...c, inscritos: c.inscritos.filter((i) => i.id !== yo.id) };
-      }
-      if (c.inscritos.length >= c.cupos) return c;
-      return { ...c, inscritos: [...c.inscritos, { id: yo.id, nombre: yo.nombre }] };
-    });
+    if (!inscrito && libres <= 0) return;
+    void onAccion('inscribir');
   }
 
-  function comentar(e: React.FormEvent) {
+  async function comentar(e: React.FormEvent) {
     e.preventDefault();
     const texto = comentario.trim();
     if (!texto) return;
-    onCambiar((c) => ({
-      ...c,
-      comentarios: [
-        ...c.comentarios,
-        { id: idNuevo('cc'), autor: yo.nombre, iniciales: yo.iniciales, texto, hora: ahora() },
-      ],
-    }));
     setComentario('');
+    await onAccion('comentar', texto);
   }
 
   return (
@@ -364,7 +342,7 @@ function PublicacionCurso({
           <Avatar iniciales={curso.tutorIniciales} color={curso.tutorColor} />
           <div className="min-w-0 flex-1">
             <p className="text-sm font-semibold text-neutral-900">{curso.tutorNombre}</p>
-            <p className="text-xs text-neutral-500">Tutor · {curso.publicado}</p>
+            <p className="text-xs text-neutral-500">Tutor · {fecha(curso.publicado)}</p>
           </div>
           <Etiqueta tono="marca">{curso.materia}</Etiqueta>
         </div>
@@ -444,7 +422,7 @@ function PublicacionCurso({
               <Avatar iniciales={c.iniciales} color="from-neutral-400 to-neutral-500" tam="sm" />
               <div className="min-w-0 rounded-2xl bg-white px-3 py-2 shadow-sm">
                 <p className="text-xs font-semibold text-neutral-900">
-                  {c.autor} <span className="font-normal text-neutral-400">· {c.hora}</span>
+                  {c.autor} <span className="font-normal text-neutral-400">· {fecha(c.hora)}</span>
                 </p>
                 <p className="text-sm text-neutral-700">{c.texto}</p>
               </div>
@@ -468,20 +446,28 @@ function PublicacionCurso({
 }
 
 /**
- * Cursos en los que está inscrito un estudiante. Lee el mismo almacén que el
- * muro, así que una inscripción hecha en /cursos aparece aquí al instante.
+ * Cursos en los que está inscrito un estudiante. Los datos llegan de la API
+ * (los pide PestanasEstudiante), los mismos que ve el muro de /cursos.
  */
-export function MisCursos({ estudianteId, enlaceMuro }: { estudianteId: string; enlaceMuro: string }) {
-  const { valor: cursos, setValor: setCursos } = useAlmacenDemo<Curso[]>('cursos', CURSOS_DEMO);
-  const mios = cursos.filter((c) => c.inscritos.some((i) => i.id === estudianteId));
+export function MisCursos({
+  cursos,
+  estudianteId,
+  enlaceMuro,
+}: {
+  cursos: Curso[] | undefined;
+  estudianteId: string;
+  enlaceMuro: string;
+}) {
+  const mios = (cursos ?? []).filter((c) => c.inscritos.some((i) => i.id === estudianteId));
 
   function desinscribir(id: string) {
     if (!window.confirm('¿Cancelar tu inscripción a este curso?')) return;
-    setCursos((actuales) =>
-      actuales.map((c) =>
-        c.id === id ? { ...c, inscritos: c.inscritos.filter((i) => i.id !== estudianteId) } : c,
-      ),
-    );
+    // Mismo endpoint que el botón del muro: alterna la inscripción.
+    void llamar(estudianteId, `/api/cursos/${id}`, 'POST', { accion: 'inscribir' });
+  }
+
+  if (!cursos) {
+    return <Tarjeta className="text-center text-sm text-neutral-500">Cargando tus cursos…</Tarjeta>;
   }
 
   if (mios.length === 0) {

@@ -37,8 +37,8 @@ export default async function PanelTutor() {
         {MODO_SIN_AUTH ? (
           <>
             <BannerDemo>
-              Cuentas de prueba: puedes entrar como cualquier tutor y alternar entre ellos. Todo sale de
-              tu navegador.
+              Cuentas de prueba: puedes entrar como cualquier tutor y alternar entre ellos. Las
+              solicitudes y los chats se guardan en la base de datos.
             </BannerDemo>
             <PapelTutor />
           </>
@@ -46,9 +46,9 @@ export default async function PanelTutor() {
           <>
             <PerfilTutorConClerk nombre={nombre} />
             <BannerDemo>
-              Las solicitudes de abajo son de ejemplo. No hay base de datos detrás.
+              Las solicitudes disponibles son de ejemplo; las entrantes y los chats vienen de la base de datos.
             </BannerDemo>
-            <BandejaTutor />
+            <BandejaTutor usuarioId={user?.id ?? ''} />
           </>
         )}
       </main>

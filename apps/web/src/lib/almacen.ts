@@ -3,7 +3,7 @@
 import { useCallback, useRef, useSyncExternalStore } from 'react';
 
 /**
- * Estado que vive en el navegador. Es la "base de datos" de la demo.
+ * Estado que vive en el navegador (localStorage).
  *
  * Por qué `useSyncExternalStore` y no `useState` + `useEffect`:
  * leer `localStorage` necesita el navegador, pero el servidor no lo tiene.
@@ -11,8 +11,10 @@ import { useCallback, useRef, useSyncExternalStore } from 'react';
  * el valor inicial (como el servidor), y justo después se suscribe y ya lee lo
  * que había guardado. Además sincroniza entre pestañas con el evento `storage`.
  *
- * Regla de la casa: los secretos y los datos de la demo en el navegador, nada de
- * peticiones. Cuando esto se conecte a Bedrock y a RDS, este archivo se borra.
+ * Ya no guarda datos: solicitudes, chats y cursos están en la base (ver
+ * src/lib/api.ts). Aquí solo quedan preferencias de pantalla de cada navegador
+ * (tutor elegido, conversación abierta) y las decisiones sobre las solicitudes
+ * de ejemplo fijas del panel del tutor.
  */
 
 const PREFIJO = 'orbita:demo:';
@@ -106,31 +108,4 @@ export function useAlmacenDemo<T>(clave: string, inicial: T) {
   }, [completa]);
 
   return { valor, setValor: escribir, reiniciar } as const;
-}
-
-export type SolicitudEnviada = {
-  id: string;
-  tutorId: string;
-  tutorNombre: string;
-  tutorIniciales: string;
-  tutorColor: string;
-  /** Mensaje del chat con el diagnóstico que originó la solicitud. */
-  origen: string;
-  materia: string;
-  resumen: string;
-  /** Créditos estimados: una hora con ese tutor. */
-  creditos: number;
-  estado: 'enviada' | 'aceptada';
-  creadaEn: string;
-};
-
-export function nuevaSolicitud(
-  datos: Omit<SolicitudEnviada, 'id' | 'estado' | 'creadaEn'>,
-): SolicitudEnviada {
-  return {
-    ...datos,
-    id: `local-${Date.now().toString(36)}`,
-    estado: 'enviada',
-    creadaEn: new Date().toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' }),
-  };
 }

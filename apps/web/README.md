@@ -7,7 +7,8 @@ Orbita lo conecta con el tutor adecuado.
 
 - Next.js 16 (App Router, Turbopack) + TypeScript + Tailwind CSS 4
 - Clerk para autenticación y usuarios
-- **Nada de IA ni base de datos todavía**: la demo usa datos locales
+- Postgres en **Supabase** con **Prisma** (solicitudes, chats, cursos)
+- **Sin IA todavía**: el asistente es un guion local
 
 ## Arranque
 
@@ -37,6 +38,32 @@ pnpm check   # lint + build
 | `/tutor` | Bandeja de solicitudes. |
 | `/cursos` | Muro de cursos y clases: todos lo ven, solo los tutores publican. En modo demo, `?como=tutor` entra como tutor. |
 
+## Base de datos (Supabase + Prisma)
+
+1. Crea las tablas: pega `supabase/esquema.sql` en **Supabase → SQL Editor → Run**
+   (también carga los tutores y cursos de ejemplo).
+2. En `.env.local`, `DATABASE_URL` con la cadena del **Session pooler**
+   (Dashboard → Connect). La conexión directa `db.<ref>.supabase.co` solo tiene
+   IPv6 y falla en muchas redes.
+3. `pnpm install` genera el cliente de Prisma (`src/generated/`, fuera de git).
+   Si cambias `prisma/schema.prisma`: `pnpm db:generate`.
+
+`prisma/schema.prisma` se mantiene **a mano** y refleja `supabase/esquema.sql`:
+`prisma db pull` falla por TLS contra el pooler. Si cambias uno, cambia el otro.
+
+| Pieza | Qué hace |
+|---|---|
+| `src/lib/db.ts` | Cliente de Prisma (driver `pg` vía `@prisma/adapter-pg`). |
+| `src/lib/sesion.ts` | Quién hace la petición: sesión de Clerk, o cabecera `x-usuario` en modo demo. Crea la fila de `usuarios` de cada cuenta de Clerk la primera vez. |
+| `src/lib/consultas.ts` | Consultas y su traducción a lo que pinta la interfaz. |
+| `src/app/api/solicitudes/…` | Crear y listar solicitudes, aceptarlas, chat de cada solicitud. |
+| `src/app/api/cursos/…` | Muro: listar, publicar (solo tutores), inscribirse, me gusta, comentar, borrar. |
+| `src/lib/api.ts` | `useConsulta` en el navegador: lee la API y se refresca sola cada 2–8 s. |
+
+En `localStorage` solo quedan preferencias de pantalla (tutor elegido,
+conversación abierta) y las decisiones sobre las solicitudes de ejemplo fijas
+del panel del tutor.
+
 ## Cómo funciona la simulación
 
 No hay modelo de IA. Todo está en dos archivos locales:
@@ -52,15 +79,12 @@ No hay modelo de IA. Todo está en dos archivos locales:
 3. Hay una latencia simulada (850 ms / 1500 ms) y los puntos de espera, para que
    se vea el ritmo de una respuesta real.
 
-**`src/lib/almacen.ts`** — el estado vive en `localStorage`, que hace de
-"base de datos" para la demo:
+Lo que el estudiante envía desde el panel aparece en la bandeja del tutor (y al
+revés: si el tutor acepta, el estudiante ve el cambio y se abre el chat). Pasa
+por la base, así que funciona entre navegadores y equipos distintos.
 
-- Lo que el estudiante envía desde el panel aparece en la bandeja del tutor
-  (y al revés: si el tutor acepta, el estudiante ve el cambio).
-- Se sincroniza entre pestañas con el evento `storage`.
-- Se lee en `useEffect`, nunca durante el render, para no romper la hidratación.
-
-Para limpiar la demo: borra las claves `orbita:demo:*` del localStorage.
+Para limpiar la demo: vacía `solicitudes` y los cursos que no sean de ejemplo
+desde el Table Editor de Supabase.
 
 ### Cómo ensayar el flujo de los dos lados
 
@@ -72,8 +96,8 @@ action se niega a hacer nada.
 
 Si prefieres cambiarlo a mano: panel de Clerk → tu usuario → *Public metadata*.
 
-Y si quieres ver el estado real del `localStorage`, abre la consola y ejecuta
-`localStorage.clear()` para reiniciar la demo.
+`localStorage.clear()` en la consola solo reinicia las preferencias de pantalla;
+los datos están en Supabase.
 
 ## Modo demostración (sin login)
 

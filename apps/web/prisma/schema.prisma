@@ -1,0 +1,123 @@
+// Esquema de Órbita en Supabase. Refleja supabase/esquema.sql, que es el que
+// crea las tablas: si cambias uno, cambia el otro.
+//
+// Nota: `prisma db pull` falla por TLS contra el pooler de Supabase; por eso
+// este archivo se mantiene a mano. La app se conecta con @prisma/adapter-pg.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model usuarios {
+  id        String    @id
+  rol       String
+  nombre    String
+  iniciales String?
+  color     String?
+  creado_en DateTime? @default(now()) @db.Timestamptz(6)
+
+  tutor                tutores?
+  solicitudesEnviadas  solicitudes[]   @relation("estudiante")
+  solicitudesRecibidas solicitudes[]   @relation("tutor")
+  mensajes             mensajes[]
+  cursos               cursos[]
+  inscripciones        inscripciones[]
+  me_gusta             me_gusta[]
+  comentarios          comentarios[]
+}
+
+model tutores {
+  usuario_id        String   @id
+  titulo            String?
+  materias          String[] @default([])
+  calificacion      Decimal? @default(5) @db.Decimal
+  sesiones          Int?     @default(0)
+  creditos_por_hora Int?     @default(2)
+  respuesta         String?
+  disponibles       String[] @default([])
+  en_linea          Boolean? @default(false)
+
+  usuario usuarios @relation(fields: [usuario_id], references: [id], onDelete: Cascade)
+}
+
+model solicitudes {
+  id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  estudiante_id String?
+  tutor_id      String?
+  materia       String?
+  resumen       String?
+  origen        String?
+  creditos      Int?      @default(0)
+  estado        String?   @default("enviada")
+  creada_en     DateTime? @default(now()) @db.Timestamptz(6)
+
+  estudiante usuarios?  @relation("estudiante", fields: [estudiante_id], references: [id], onDelete: Cascade)
+  tutor      usuarios?  @relation("tutor", fields: [tutor_id], references: [id], onDelete: Cascade)
+  mensajes   mensajes[]
+}
+
+model mensajes {
+  id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  solicitud_id String?   @db.Uuid
+  autor_id     String?
+  texto        String?
+  enviado_en   DateTime? @default(now()) @db.Timestamptz(6)
+
+  solicitud solicitudes? @relation(fields: [solicitud_id], references: [id], onDelete: Cascade)
+  autor     usuarios?    @relation(fields: [autor_id], references: [id], onDelete: Cascade)
+}
+
+model cursos {
+  id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tutor_id     String?
+  titulo       String?
+  descripcion  String?
+  materia      String?
+  modalidad    String?
+  cuando       String?
+  cupos        Int?
+  creditos     Int?      @default(0)
+  publicado_en DateTime? @default(now()) @db.Timestamptz(6)
+
+  tutor         usuarios?       @relation(fields: [tutor_id], references: [id], onDelete: Cascade)
+  inscripciones inscripciones[]
+  me_gusta      me_gusta[]
+  comentarios   comentarios[]
+}
+
+model inscripciones {
+  curso_id      String    @db.Uuid
+  estudiante_id String
+  inscrito_en   DateTime? @default(now()) @db.Timestamptz(6)
+
+  curso      cursos   @relation(fields: [curso_id], references: [id], onDelete: Cascade)
+  estudiante usuarios @relation(fields: [estudiante_id], references: [id], onDelete: Cascade)
+
+  @@id([curso_id, estudiante_id])
+}
+
+model me_gusta {
+  curso_id   String @db.Uuid
+  usuario_id String
+
+  curso   cursos   @relation(fields: [curso_id], references: [id], onDelete: Cascade)
+  usuario usuarios @relation(fields: [usuario_id], references: [id], onDelete: Cascade)
+
+  @@id([curso_id, usuario_id])
+}
+
+model comentarios {
+  id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  curso_id  String?   @db.Uuid
+  autor_id  String?
+  texto     String?
+  creado_en DateTime? @default(now()) @db.Timestamptz(6)
+
+  curso cursos?   @relation(fields: [curso_id], references: [id], onDelete: Cascade)
+  autor usuarios? @relation(fields: [autor_id], references: [id], onDelete: Cascade)
+}

@@ -131,12 +131,12 @@ export function Marca({ subtitulo, className = 'h-7 w-auto' }: { subtitulo?: str
   );
 }
 
-/** Aviso de demo: deja claro que nada de esto sale de la máquina. */
+/** Aviso de demo: deja claro qué es simulado y qué es real. */
 export function BannerDemo({ children }: { children?: ReactNode }) {
   return (
     <div className="flex items-center gap-2 rounded-xl border border-dashed border-marca-200 bg-marca-50/60 px-3 py-2 text-xs text-marca-900">
       <span className="inline-block h-1.5 w-1.5 rounded-full bg-marca-500" />
-      {children ?? 'Demostración: datos locales del navegador. Sin IA ni base de datos conectadas.'}
+      {children ?? 'Demostración: el asistente es simulado (sin IA). Solicitudes, chats y cursos se guardan en la base de datos.'}
     </div>
   );
 }

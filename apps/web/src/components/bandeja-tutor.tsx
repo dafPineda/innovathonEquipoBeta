@@ -1,7 +1,10 @@
 'use client';
 
+import { useState } from 'react';
 import { SOLICITUDES_DEMO, type SolicitudDemo, type Tutor } from '@/lib/datos-demo';
-import { useAlmacenDemo, type SolicitudEnviada } from '@/lib/almacen';
+import { useAlmacenDemo } from '@/lib/almacen';
+import { llamar, useConsulta } from '@/lib/api';
+import type { SolicitudEnviada } from '@/lib/tipos';
 import { Avatar, Boton, Etiqueta, SeccionTitulo, Tarjeta } from '@/components/ui';
 import { claveConversacionActiva, Conversaciones } from '@/components/chat-sesion';
 
@@ -15,7 +18,7 @@ const TONO_URGENCIA = {
 
 const ETIQUETA_URGENCIA = { alta: 'urgente', media: 'esta semana', baja: 'sin urgencia' } as const;
 
-export function BandejaTutor({ tutor }: { tutor?: Tutor }) {
+export function BandejaTutor({ tutor, usuarioId }: { tutor?: Tutor; usuarioId: string }) {
   // Solicitudes fijas de la demo: aceptar o descartar.
   // Cada tutor tiene sus propias decisiones, así que puedes ensayar los dos
   // lados sin que una aceptación estropee el ensayo del otro.
@@ -24,11 +27,12 @@ export function BandejaTutor({ tutor }: { tutor?: Tutor }) {
     {},
   );
 
-  // Solicitudes que un estudiante envió en este mismo navegador (otra pestaña).
-  // Al aceptar una, el estudiante ve el cambio al instante.
-  const { valor: todas, setValor: setTodas } = useAlmacenDemo<SolicitudEnviada[]>('solicitudes', []);
-  // Cada tutor ve solo las que le enviaron a él; las más nuevas arriba.
-  const recibidas = (tutor ? todas.filter((s) => s.tutorId === tutor.id) : todas).slice().reverse();
+  // Solicitudes que los estudiantes le enviaron a este tutor (base de datos).
+  // Se refrescan solas: una nueva aparece sin recargar la página.
+  const { datos: todas, error } = useConsulta<SolicitudEnviada[]>('/api/solicitudes', usuarioId);
+  const [fallo, setFallo] = useState<string | null>(null);
+  // Solo las recibidas (no las que haya enviado); las más nuevas arriba.
+  const recibidas = (todas ?? []).filter((s) => s.tutorId === usuarioId).reverse();
   const sinResponder = recibidas.filter((s) => s.estado === 'enviada').length;
   const conChat = recibidas.filter((s) => s.estado === 'aceptada');
   const { setValor: setConversacion } = useAlmacenDemo<string>(claveConversacionActiva('tutor'), '');
@@ -45,21 +49,32 @@ export function BandejaTutor({ tutor }: { tutor?: Tutor }) {
   const aceptadas = suyas.filter((s) => decisiones[s.id] === 'aceptada');
   const descartadas = suyas.filter((s) => decisiones[s.id] === 'descartada');
 
-  function aceptar(id: string) {
-    setTodas((actuales) => actuales.map((s) => (s.id === id ? { ...s, estado: 'aceptada' } : s)));
-    abrirChat(id);
+  async function aceptar(id: string) {
+    try {
+      setFallo(null);
+      await llamar(usuarioId, `/api/solicitudes/${id}`, 'PATCH', { estado: 'aceptada' });
+      abrirChat(id);
+    } catch (e) {
+      setFallo((e as Error).message);
+    }
   }
 
   return (
     <div className="space-y-8">
+      {fallo || error ? (
+        <p className="rounded-xl bg-rose-50 px-4 py-2.5 text-xs text-rose-700">
+          No se pudo {fallo ? 'aceptar la solicitud' : 'cargar las solicitudes'}: {fallo ?? error}
+        </p>
+      ) : null}
+
       {recibidas.length > 0 ? (
         <section className="space-y-3">
           <SeccionTitulo
             titulo="Solicitudes entrantes"
             descripcion={
               tutor
-                ? `Enviadas a ${tutor.nombre} por un estudiante en este navegador durante la demo.`
-                : 'Enviadas por un estudiante en este navegador durante la demo.'
+                ? `Lo que los estudiantes le pidieron a ${tutor.nombre}.`
+                : 'Lo que los estudiantes te pidieron desde el asistente.'
             }
             accion={<Etiqueta tono="acento">{sinResponder} sin responder</Etiqueta>}
           />
@@ -67,9 +82,9 @@ export function BandejaTutor({ tutor }: { tutor?: Tutor }) {
             {recibidas.map((s) => (
               <Tarjeta key={s.id} className="flex flex-col gap-3">
                 <div className="flex items-start gap-3">
-                  <Avatar iniciales={s.tutorIniciales} color={s.tutorColor} tam="sm" />
+                  <Avatar iniciales={s.estudianteIniciales} color={s.estudianteColor} tam="sm" />
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium text-neutral-900">Estudiante de la demo</p>
+                    <p className="text-sm font-medium text-neutral-900">{s.estudianteNombre}</p>
                     <p className="mt-0.5 text-xs text-neutral-500">
                       Para {s.tutorNombre} · {s.materia}
                     </p>
@@ -99,7 +114,7 @@ export function BandejaTutor({ tutor }: { tutor?: Tutor }) {
         </section>
       ) : null}
 
-      <Conversaciones solicitudes={conChat} yo="tutor" />
+      <Conversaciones solicitudes={conChat} yo="tutor" usuarioId={usuarioId} />
 
       <section className="space-y-3">
         <SeccionTitulo

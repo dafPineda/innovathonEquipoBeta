@@ -1,8 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { useAlmacenDemo } from '@/lib/almacen';
-import { CURSOS_DEMO, type Curso } from '@/lib/datos-demo';
+import { useConsulta } from '@/lib/api';
+import type { Curso } from '@/lib/datos-demo';
 import { ChatAsistente } from '@/components/chat-asistente';
 import { MisCursos } from '@/components/muro-cursos';
 
@@ -22,8 +22,8 @@ export function PestanasEstudiante({
   inicial?: Pestana;
 }) {
   const [activa, setActiva] = useState<Pestana>(inicial);
-  const { valor: cursos } = useAlmacenDemo<Curso[]>('cursos', CURSOS_DEMO);
-  const inscritos = cursos.filter((c) => c.inscritos.some((i) => i.id === estudianteId)).length;
+  const { datos: cursos } = useConsulta<Curso[]>('/api/cursos', estudianteId, 8000);
+  const inscritos = (cursos ?? []).filter((c) => c.inscritos.some((i) => i.id === estudianteId)).length;
 
   const pestanas: { id: Pestana; texto: string; cuenta?: number }[] = [
     { id: 'asistente', texto: 'Asistente' },
@@ -57,10 +57,10 @@ export function PestanasEstudiante({
       </div>
 
       <div role="tabpanel" hidden={activa !== 'asistente'}>
-        <ChatAsistente />
+        <ChatAsistente estudianteId={estudianteId} />
       </div>
       <div role="tabpanel" hidden={activa !== 'cursos'}>
-        <MisCursos estudianteId={estudianteId} enlaceMuro={enlaceMuro} />
+        <MisCursos cursos={cursos} estudianteId={estudianteId} enlaceMuro={enlaceMuro} />
       </div>
     </div>
   );

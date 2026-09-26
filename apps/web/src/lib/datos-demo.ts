@@ -374,12 +374,16 @@ export const SOLICITUDES_DEMO: SolicitudDemo[] = [
   },
 ];
 
-/** Cursos o clases que publican los tutores en el muro (red social de la demo). */
+/**
+ * Cursos o clases que publican los tutores en el muro. Viven en la base
+ * (tabla cursos); los de ejemplo los carga supabase/esquema.sql.
+ */
 export type ComentarioCurso = {
   id: string;
   autor: string;
   iniciales: string;
   texto: string;
+  /** Fecha ISO del comentario. */
   hora: string;
 };
 
@@ -397,6 +401,7 @@ export type Curso = {
   cuando: string;
   cupos: number;
   creditos: number;
+  /** Fecha ISO de publicación. */
   publicado: string;
   /** Ids de quien le dio "me gusta". */
   meGusta: string[];
@@ -410,86 +415,4 @@ export const MATERIAS: Materia[] = [
   'Física',
   'Redacción',
   'Métodos de estudio',
-];
-
-export const CURSOS_DEMO: Curso[] = [
-  {
-    id: 'c-1',
-    tutorId: 'carla',
-    tutorNombre: 'Carla Ríos',
-    tutorIniciales: 'CR',
-    tutorColor: 'from-marca-400 to-acento-500',
-    titulo: 'Derivadas sin miedo: regla de la cadena paso a paso',
-    descripcion:
-      'Clase de repaso para el primer parcial. Hacemos 6 ejercicios tipo examen explicando el porqué de cada paso, no solo la fórmula. Trae tus dudas.',
-    materia: 'Matemáticas',
-    modalidad: 'En línea',
-    cuando: 'Sábado 10:00',
-    cupos: 12,
-    creditos: 2,
-    publicado: 'hace 3 h',
-    meGusta: ['diego', 'lucia', 'e-1', 'e-2'],
-    inscritos: [
-      { id: 'e-1', nombre: 'Ana Q.' },
-      { id: 'e-2', nombre: 'Bruno S.' },
-      { id: 'e-3', nombre: 'Marta L.' },
-    ],
-    comentarios: [
-      {
-        id: 'cc-1',
-        autor: 'Ana Q.',
-        iniciales: 'AQ',
-        texto: '¿Van a entrar también límites o solo derivadas?',
-        hora: 'hace 2 h',
-      },
-      {
-        id: 'cc-2',
-        autor: 'Carla Ríos',
-        iniciales: 'CR',
-        texto: 'Solo derivadas esta vez, límites en la siguiente 🙂',
-        hora: 'hace 1 h',
-      },
-    ],
-  },
-  {
-    id: 'c-2',
-    tutorId: 'diego',
-    tutorNombre: 'Diego Mora',
-    tutorIniciales: 'DM',
-    tutorColor: 'from-emerald-400 to-teal-500',
-    titulo: 'Taller de SQL: JOINs que no duplican filas',
-    descripcion:
-      'Taller práctico con una base de datos de ejemplo. Veremos INNER, LEFT y por qué aparecen duplicados con tablas de relación.',
-    materia: 'Programación',
-    modalidad: 'En línea',
-    cuando: 'Martes 19:00',
-    cupos: 20,
-    creditos: 3,
-    publicado: 'ayer',
-    meGusta: ['e-2', 'carla'],
-    inscritos: [{ id: 'e-2', nombre: 'Bruno S.' }],
-    comentarios: [],
-  },
-  {
-    id: 'c-3',
-    tutorId: 'tomas',
-    tutorNombre: 'Tomás Aliaga',
-    tutorIniciales: 'TA',
-    tutorColor: 'from-amber-400 to-orange-500',
-    titulo: 'Plan de estudio para la semana de exámenes',
-    descripcion:
-      'Una sesión de grupo para armar tu calendario de estudio: bloques, descansos y qué repasar primero. Sales con tu plan hecho.',
-    materia: 'Métodos de estudio',
-    modalidad: 'Presencial',
-    cuando: 'Jueves 17:00 · Biblioteca central',
-    cupos: 8,
-    creditos: 1,
-    publicado: 'hace 2 días',
-    meGusta: ['rosa', 'e-3'],
-    inscritos: [
-      { id: 'e-3', nombre: 'Marta L.' },
-      { id: 'e-4', nombre: 'Luis P.' },
-    ],
-    comentarios: [],
-  },
 ];
