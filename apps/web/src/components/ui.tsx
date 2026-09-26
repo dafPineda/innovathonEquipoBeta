@@ -1,4 +1,5 @@
 import Image from 'next/image';
+import Link from 'next/link';
 import type { ReactNode } from 'react';
 
 /**
@@ -120,7 +121,9 @@ export function Logo({ className = 'h-7 w-7' }: { className?: string }) {
 export function Marca({ subtitulo, className = 'h-7 w-auto' }: { subtitulo?: string; className?: string }) {
   return (
     <div className="flex items-center gap-3">
-      <Image src="/logo-orbita.png" alt="Órbita" width={687} height={215} priority className={className} />
+      <Link href="/" aria-label="Órbita · ir a la página principal" className="shrink-0 transition hover:opacity-80">
+        <Image src="/logo-orbita.png" alt="Órbita" width={687} height={215} priority className={className} />
+      </Link>
       {subtitulo ? (
         <span className="border-l border-neutral-200 pl-3 text-xs font-medium text-neutral-500">{subtitulo}</span>
       ) : null}
