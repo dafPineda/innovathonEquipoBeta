@@ -11,6 +11,7 @@ import {
 } from '@/lib/datos-demo';
 import { nuevaSolicitud, useAlmacenDemo, type SolicitudEnviada } from '@/lib/almacen';
 import { Avatar, Boton, Etiqueta, Estrellas, Logo, Tarjeta } from '@/components/ui';
+import { claveConversacionActiva, Conversaciones } from '@/components/chat-sesion';
 
 type Mensaje = {
   id: string;
@@ -40,6 +41,13 @@ export function ChatAsistente() {
     [],
   );
 
+  const { setValor: setConversacion } = useAlmacenDemo<string>(claveConversacionActiva('estudiante'), '');
+
+  function abrirChat(id: string) {
+    setConversacion(id);
+    document.getElementById('conversaciones')?.scrollIntoView({ behavior: 'smooth' });
+  }
+
   useEffect(() => {
     const ids = temporizadores.current;
     return () => ids.forEach((id) => window.clearTimeout(id));
@@ -53,7 +61,10 @@ export function ChatAsistente() {
     const limpio = texto.trim();
     if (!limpio || pensando) return;
 
-    const perfil = analizarMensaje(limpio);
+    // La materia sale de toda la conversación, no solo del último mensaje:
+    // "me pierdo en ese paso" no dice de qué se trata, el primer mensaje sí.
+    const escritos = [...mensajes.filter((m) => m.de === 'yo').map((m) => m.texto), limpio];
+    const perfil = analizarMensaje(escritos.join(' '));
     const numero = turno + 1;
 
     setMensajes((previos) => [...previos, { id: nuevoId(), de: 'yo', texto: limpio }]);
@@ -71,7 +82,7 @@ export function ChatAsistente() {
           de: 'orbita',
           texto: respuestaDelAsistente(perfil, numero),
           ...(numero >= MENSAJES_PARA_DIAGNOSTICAR
-            ? { diagnostico: construirDiagnostico(perfil, limpio) }
+            ? { diagnostico: construirDiagnostico(perfil, escritos[0]!) }
             : {}),
         },
       ]);
@@ -80,20 +91,30 @@ export function ChatAsistente() {
     temporizadores.current.push(id);
   }
 
-  function pedirAyuda(tutorId: string) {
+  /** Una solicitud por tutor y por diagnóstico: un problema nuevo es una solicitud nueva. */
+  function pedirAyuda(mensajeId: string, tutorId: string) {
     const tutor = TUTOR_POR_ID[tutorId];
-    if (!tutor || solicitudes.some((s) => s.tutorId === tutorId)) return;
+    const indice = mensajes.findIndex((m) => m.id === mensajeId);
+    const diagnostico = mensajes[indice]?.diagnostico;
+    if (!tutor || !diagnostico) return;
+    if (solicitudes.some((s) => s.tutorId === tutorId && s.origen === mensajeId)) return;
 
-    const ultimo = [...mensajes].reverse().find((m) => m.de === 'yo');
-    setSolicitudes([
-      ...solicitudes,
+    // El tutor recibe todo lo que contó el estudiante hasta ese diagnóstico.
+    const contado = mensajes
+      .slice(0, indice)
+      .filter((m) => m.de === 'yo')
+      .map((m) => m.texto)
+      .join(' · ');
+    setSolicitudes((actuales) => [
+      ...actuales,
       nuevaSolicitud({
         tutorId: tutor.id,
         tutorNombre: tutor.nombre,
         tutorIniciales: tutor.iniciales,
         tutorColor: tutor.color,
-        materia: tutor.materias[0] ?? 'General',
-        resumen: ultimo?.texto ?? 'Sin detalle',
+        origen: mensajeId,
+        materia: diagnostico.materia,
+        resumen: contado || 'Sin detalle',
         creditos: tutor.creditosPorHora,
       }),
     ]);
@@ -105,17 +126,17 @@ export function ChatAsistente() {
         {/* Cabecera del chat */}
         <div className="flex items-center justify-between border-b border-neutral-100 px-5 py-3.5">
           <div className="flex items-center gap-2.5">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-50">
-              <Logo className="h-4.5 w-4.5" />
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-marca-50">
+              <Logo className="h-6 w-6" />
             </div>
             <div>
-              <p className="text-sm font-semibold text-neutral-900">Asistente Orbita</p>
+              <p className="text-sm font-semibold text-neutral-900">Asistente Órbita</p>
               <p className="text-xs text-neutral-500">
                 {pensando ? 'Escribiendo…' : 'Cuéntame qué te bloquea'}
               </p>
             </div>
           </div>
-          <Etiqueta tono="indigo">simulado</Etiqueta>
+          <Etiqueta tono="marca">simulado</Etiqueta>
         </div>
 
         {/* Mensajes */}
@@ -134,7 +155,7 @@ export function ChatAsistente() {
                     key={s}
                     type="button"
                     onClick={() => enviar(s)}
-                    className="cursor-pointer rounded-full border border-neutral-200 bg-neutral-50 px-3 py-1.5 text-xs text-neutral-700 transition hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-800"
+                    className="cursor-pointer rounded-full border border-neutral-200 bg-neutral-50 px-3 py-1.5 text-xs text-neutral-700 transition hover:border-marca-300 hover:bg-marca-50 hover:text-marca-800"
                   >
                     {s}
                   </button>
@@ -149,7 +170,7 @@ export function ChatAsistente() {
 
           {pensando ? (
             <div className="flex items-end gap-2">
-              <div className="flex h-7 w-7 items-center justify-center rounded-full bg-indigo-600 text-[10px] font-semibold text-white">
+              <div className="flex h-7 w-7 items-center justify-center rounded-full bg-marca-600 text-[10px] font-semibold text-white">
                 OR
               </div>
               <div className="flex gap-1 rounded-2xl rounded-bl-md bg-neutral-100 px-3.5 py-3">
@@ -181,7 +202,7 @@ export function ChatAsistente() {
               }}
               rows={1}
               placeholder="Escribe tu problema…"
-              className="max-h-32 min-h-[2.75rem] flex-1 resize-none rounded-xl border border-neutral-200 px-3.5 py-3 text-sm outline-none transition placeholder:text-neutral-400 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
+              className="max-h-32 min-h-[2.75rem] flex-1 resize-none rounded-xl border border-neutral-200 px-3.5 py-3 text-sm outline-none transition placeholder:text-neutral-400 focus:border-marca-400 focus:ring-2 focus:ring-marca-100"
             />
             <Boton variante="acento" onClick={() => enviar(borrador)} disabled={!borrador.trim()}>
               Enviar
@@ -199,16 +220,27 @@ export function ChatAsistente() {
           <h2 className="text-sm font-semibold text-neutral-900">Tus solicitudes</h2>
           <div className="grid gap-3 sm:grid-cols-2">
             {solicitudes.map((s) => (
-              <Tarjeta key={s.id} className="flex items-start gap-3">
-                <Avatar iniciales={s.tutorIniciales} color={s.tutorColor} tam="sm" />
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium text-neutral-900">{s.tutorNombre}</p>
-                  <p className="mt-0.5 line-clamp-2 text-xs text-neutral-500">{s.resumen}</p>
-                  <div className="mt-2 flex items-center gap-2">
-                    <Etiqueta tono={s.estado === 'aceptada' ? 'verde' : 'ambar'}>
-                      {s.estado === 'aceptada' ? 'Aceptada' : 'Esperando respuesta'}
-                    </Etiqueta>
-                    <span className="text-[11px] text-neutral-400">{s.creadaEn}</span>
+              <Tarjeta key={s.id}>
+                <div className="flex items-start gap-3">
+                  <Avatar iniciales={s.tutorIniciales} color={s.tutorColor} tam="sm" />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium text-neutral-900">{s.tutorNombre}</p>
+                    <p className="mt-0.5 line-clamp-2 text-xs text-neutral-500">{s.resumen}</p>
+                    <div className="mt-2 flex items-center gap-2">
+                      <Etiqueta tono={s.estado === 'aceptada' ? 'verde' : 'ambar'}>
+                        {s.estado === 'aceptada' ? 'Aceptada' : 'Esperando respuesta'}
+                      </Etiqueta>
+                      <span className="text-[11px] text-neutral-400">{s.creadaEn}</span>
+                      {s.estado === 'aceptada' ? (
+                        <button
+                          type="button"
+                          onClick={() => abrirChat(s.id)}
+                          className="ml-auto cursor-pointer text-xs font-medium text-marca-600 hover:text-marca-800"
+                        >
+                          Abrir chat →
+                        </button>
+                      ) : null}
+                    </div>
                   </div>
                 </div>
               </Tarjeta>
@@ -216,6 +248,11 @@ export function ChatAsistente() {
           </div>
         </section>
       ) : null}
+
+      <Conversaciones
+        solicitudes={solicitudes.filter((s) => s.estado === 'aceptada')}
+        yo="estudiante"
+      />
     </div>
   );
 }
@@ -227,14 +264,14 @@ function Burbuja({
 }: {
   mensaje: Mensaje;
   enviados: SolicitudEnviada[];
-  onPedir: (tutorId: string) => void;
+  onPedir: (mensajeId: string, tutorId: string) => void;
 }) {
   const mio = mensaje.de === 'yo';
 
   return (
     <div className={`flex items-end gap-2 ${mio ? 'justify-end' : ''}`}>
       {!mio ? (
-        <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-indigo-600 text-[10px] font-semibold text-white">
+        <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-marca-600 text-[10px] font-semibold text-white">
           OR
         </div>
       ) : null}
@@ -243,7 +280,7 @@ function Burbuja({
         <div
           className={
             mio
-              ? 'rounded-2xl rounded-br-md bg-neutral-900 px-4 py-2.5 text-sm text-white'
+              ? 'rounded-2xl rounded-br-md bg-marca-600 px-4 py-2.5 text-sm text-white'
               : 'rounded-2xl rounded-bl-md bg-neutral-100 px-4 py-2.5 text-sm text-neutral-800'
           }
         >
@@ -253,8 +290,8 @@ function Burbuja({
         {mensaje.diagnostico ? (
           <TarjetaDiagnostico
             diagnostico={mensaje.diagnostico}
-            enviados={enviados}
-            onPedir={onPedir}
+            enviados={enviados.filter((s) => s.origen === mensaje.id)}
+            onPedir={(tutorId) => onPedir(mensaje.id, tutorId)}
           />
         ) : null}
       </div>
@@ -272,12 +309,12 @@ function TarjetaDiagnostico({
   onPedir: (tutorId: string) => void;
 }) {
   return (
-    <div className="mt-3 space-y-3 rounded-2xl border border-indigo-100 bg-gradient-to-br from-indigo-50 to-white p-4">
+    <div className="mt-3 space-y-3 rounded-2xl border border-marca-100 bg-gradient-to-br from-marca-50 to-white p-4">
       <div className="flex items-center justify-between">
-        <p className="text-[11px] font-semibold uppercase tracking-wider text-indigo-700">
+        <p className="text-[11px] font-semibold uppercase tracking-wider text-marca-700">
           Diagnóstico
         </p>
-        <Etiqueta tono="indigo">{diagnostico.materia}</Etiqueta>
+        <Etiqueta tono="marca">{diagnostico.materia}</Etiqueta>
       </div>
 
       <p className="text-sm leading-relaxed text-neutral-700">{diagnostico.resumen}</p>
@@ -316,14 +353,14 @@ function TarjetaDiagnostico({
                 </div>
                 <div className="text-right">
                   <p className="text-xs text-neutral-500">Afinidad</p>
-                  <p className="text-lg font-semibold text-indigo-600">{t.afinidad}%</p>
+                  <p className="text-lg font-semibold text-marca-600">{t.afinidad}%</p>
                 </div>
               </div>
 
               {/* Barra de afinidad */}
               <div className="h-1.5 w-full overflow-hidden rounded-full bg-neutral-100">
                 <div
-                  className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-violet-500"
+                  className="h-full rounded-full bg-gradient-to-r from-marca-500 to-acento-500"
                   style={{ width: `${t.afinidad}%` }}
                 />
               </div>

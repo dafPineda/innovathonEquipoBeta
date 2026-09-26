@@ -8,7 +8,7 @@ import { MODO_SIN_AUTH } from '@/lib/modo-demo';
  * (ver `exigirRol` en src/lib/rol.ts) porque ahí se lee el publicMetadata
  * fresco de Clerk, sin el retraso del session token.
  */
-const RUTAS_PROTEGIDAS = ['/estudiante', '/tutor', RUTA_ELECCION_ROL];
+const RUTAS_PROTEGIDAS = ['/estudiante', '/tutor', '/cursos', RUTA_ELECCION_ROL];
 
 /** ¿Qué rol exige este path? `null` si la ruta no es un panel. */
 function rolDeRuta(pathname: string): Rol | null {

@@ -3,6 +3,7 @@
 import { SOLICITUDES_DEMO, type SolicitudDemo, type Tutor } from '@/lib/datos-demo';
 import { useAlmacenDemo, type SolicitudEnviada } from '@/lib/almacen';
 import { Avatar, Boton, Etiqueta, SeccionTitulo, Tarjeta } from '@/components/ui';
+import { claveConversacionActiva, Conversaciones } from '@/components/chat-sesion';
 
 type Decision = 'aceptada' | 'descartada';
 
@@ -25,7 +26,17 @@ export function BandejaTutor({ tutor }: { tutor?: Tutor }) {
 
   // Solicitudes que un estudiante envió en este mismo navegador (otra pestaña).
   // Al aceptar una, el estudiante ve el cambio al instante.
-  const { valor: recibidas, setValor: setRecibidas } = useAlmacenDemo<SolicitudEnviada[]>('solicitudes', []);
+  const { valor: todas, setValor: setTodas } = useAlmacenDemo<SolicitudEnviada[]>('solicitudes', []);
+  // Cada tutor ve solo las que le enviaron a él; las más nuevas arriba.
+  const recibidas = (tutor ? todas.filter((s) => s.tutorId === tutor.id) : todas).slice().reverse();
+  const sinResponder = recibidas.filter((s) => s.estado === 'enviada').length;
+  const conChat = recibidas.filter((s) => s.estado === 'aceptada');
+  const { setValor: setConversacion } = useAlmacenDemo<string>(claveConversacionActiva('tutor'), '');
+
+  function abrirChat(id: string) {
+    setConversacion(id);
+    document.getElementById('conversaciones')?.scrollIntoView({ behavior: 'smooth' });
+  }
 
   // Con tutor, cada uno solo ve lo que le corresponde por materia. Sin tutor
   // (sesión real de Clerk) se muestran todas: aún no hay perfil en la base.
@@ -35,7 +46,8 @@ export function BandejaTutor({ tutor }: { tutor?: Tutor }) {
   const descartadas = suyas.filter((s) => decisiones[s.id] === 'descartada');
 
   function aceptar(id: string) {
-    setRecibidas(recibidas.map((s) => (s.id === id ? { ...s, estado: 'aceptada' } : s)));
+    setTodas((actuales) => actuales.map((s) => (s.id === id ? { ...s, estado: 'aceptada' } : s)));
+    abrirChat(id);
   }
 
   return (
@@ -44,8 +56,12 @@ export function BandejaTutor({ tutor }: { tutor?: Tutor }) {
         <section className="space-y-3">
           <SeccionTitulo
             titulo="Solicitudes entrantes"
-            descripcion="Enviadas por un estudiante en este navegador durante la demo."
-            accion={<Etiqueta tono="indigo">{recibidas.length} nuevas</Etiqueta>}
+            descripcion={
+              tutor
+                ? `Enviadas a ${tutor.nombre} por un estudiante en este navegador durante la demo.`
+                : 'Enviadas por un estudiante en este navegador durante la demo.'
+            }
+            accion={<Etiqueta tono="acento">{sinResponder} sin responder</Etiqueta>}
           />
           <div className="grid gap-4 lg:grid-cols-2">
             {recibidas.map((s) => (
@@ -58,12 +74,19 @@ export function BandejaTutor({ tutor }: { tutor?: Tutor }) {
                       Para {s.tutorNombre} · {s.materia}
                     </p>
                   </div>
-                  <Etiqueta tono="indigo">{s.creditos} créditos</Etiqueta>
+                  <Etiqueta tono="acento">{s.creditos} créditos</Etiqueta>
                 </div>
                 <p className="line-clamp-2 text-sm text-neutral-600">{s.resumen}</p>
                 {s.estado === 'aceptada' ? (
-                  <div className="rounded-xl bg-emerald-50 px-3 py-2.5 text-xs font-medium text-emerald-800">
+                  <div className="flex items-center justify-between gap-2 rounded-xl bg-emerald-50 px-3 py-2.5 text-xs font-medium text-emerald-800">
                     Aceptada · sesión por confirmar
+                    <button
+                      type="button"
+                      onClick={() => abrirChat(s.id)}
+                      className="cursor-pointer font-semibold text-emerald-900 hover:underline"
+                    >
+                      Abrir chat →
+                    </button>
                   </div>
                 ) : (
                   <Boton variante="acento" onClick={() => aceptar(s.id)}>
@@ -76,6 +99,8 @@ export function BandejaTutor({ tutor }: { tutor?: Tutor }) {
         </section>
       ) : null}
 
+      <Conversaciones solicitudes={conChat} yo="tutor" />
+
       <section className="space-y-3">
         <SeccionTitulo
           titulo="Solicitudes disponibles"
@@ -84,7 +109,7 @@ export function BandejaTutor({ tutor }: { tutor?: Tutor }) {
               ? `Lo que le encaja a ${tutor.nombre}: ${tutor.materias.join(', ')}.`
               : 'Las más recientes primero. Acepta una o déjala pasar.'
           }
-          accion={<Etiqueta tono="indigo">{pendientes.length} sin revisar</Etiqueta>}
+          accion={<Etiqueta tono="marca">{pendientes.length} sin revisar</Etiqueta>}
         />
 
         {pendientes.length === 0 ? (
@@ -174,7 +199,7 @@ function TarjetaSolicitud({
         </div>
         <div className="text-right">
           <p className="text-[11px] text-neutral-500">ofrece</p>
-          <p className="text-sm font-semibold text-indigo-600">{creditos} cr</p>
+          <p className="text-sm font-semibold text-marca-600">{creditos} cr</p>
         </div>
       </div>
 

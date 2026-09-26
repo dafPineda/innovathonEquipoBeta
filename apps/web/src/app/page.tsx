@@ -4,7 +4,7 @@ import { currentUser } from '@clerk/nextjs/server';
 import { redirect } from 'next/navigation';
 import { panelDe, rolDePublicMetadata, type Rol } from '@/lib/rol';
 import { MODO_SIN_AUTH } from '@/lib/modo-demo';
-import { Logo } from '@/components/ui';
+import { Marca } from '@/components/ui';
 
 /**
  * Botonera de entrada. Con el bypass de demo, en vez de pedirte que te
@@ -17,7 +17,7 @@ function Entrar({ rol, texto, destacado }: { rol: Rol; texto: string; destacado?
         href={panelDe(rol)}
         className={
           destacado
-            ? 'inline-flex cursor-pointer items-center rounded-xl bg-neutral-900 px-6 py-3 text-sm font-medium text-white transition hover:bg-neutral-700'
+            ? 'inline-flex cursor-pointer items-center rounded-xl bg-marca-600 px-6 py-3 text-sm font-medium text-white transition hover:bg-marca-500'
             : 'inline-flex cursor-pointer items-center rounded-lg px-3.5 py-2 text-sm font-medium text-neutral-700 transition hover:bg-neutral-100'
         }
       >
@@ -35,8 +35,8 @@ function EntrarConClerk({ texto, destacado }: { texto: string; destacado?: boole
       <button
         className={
           destacado
-            ? 'cursor-pointer rounded-xl bg-neutral-900 px-6 py-3 text-sm font-medium text-white transition hover:bg-neutral-700'
-            : 'cursor-pointer rounded-lg bg-neutral-900 px-3.5 py-2 text-sm font-medium text-white transition hover:bg-neutral-700'
+            ? 'cursor-pointer rounded-xl bg-marca-600 px-6 py-3 text-sm font-medium text-white transition hover:bg-marca-500'
+            : 'cursor-pointer rounded-lg bg-marca-600 px-3.5 py-2 text-sm font-medium text-white transition hover:bg-marca-500'
         }
       >
         {texto}
@@ -51,7 +51,7 @@ const PASOS = [
     texto: 'Escribes tu duda con tus palabras. No hay que saber explicar el problema con precisión.',
   },
   {
-    titulo: 'Orbita lo ordena',
+    titulo: 'Órbita lo ordena',
     texto: 'El asistente identifica la materia, el nivel y dónde está el bloqueo real.',
   },
   {
@@ -68,12 +68,9 @@ export default async function Inicio() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-neutral-50 via-white to-indigo-50/60">
+    <div className="min-h-screen bg-gradient-to-b from-neutral-50 via-white to-marca-50/60">
       <header className="mx-auto flex w-full max-w-5xl items-center justify-between px-6 py-5">
-        <div className="flex items-center gap-2">
-          <Logo className="h-7 w-7" />
-          <span className="text-base font-semibold tracking-tight text-neutral-900">Orbita</span>
-        </div>
+        <Marca className="h-8 w-auto" />
         <div className="flex items-center gap-2">
           {MODO_SIN_AUTH ? (
             <>
@@ -88,7 +85,7 @@ export default async function Inicio() {
                 </button>
               </SignInButton>
               <SignUpButton mode="modal">
-                <button className="cursor-pointer rounded-lg bg-neutral-900 px-3.5 py-2 text-sm font-medium text-white transition hover:bg-neutral-700">
+                <button className="cursor-pointer rounded-lg bg-marca-600 px-3.5 py-2 text-sm font-medium text-white transition hover:bg-marca-500">
                   Crear cuenta
                 </button>
               </SignUpButton>
@@ -99,17 +96,18 @@ export default async function Inicio() {
 
       <main className="mx-auto w-full max-w-5xl px-6 pb-20">
         <section className="pt-10 sm:pt-16">
-          <p className="inline-flex items-center gap-2 rounded-full border border-indigo-100 bg-white px-3 py-1 text-xs font-medium text-indigo-700">
-            <span className="h-1.5 w-1.5 rounded-full bg-indigo-500" />
+          <p className="inline-flex items-center gap-2 rounded-full border border-marca-100 bg-white px-3 py-1 text-xs font-medium text-marca-700">
+            <span className="h-1.5 w-1.5 rounded-full bg-acento-500" />
             Tutoría entre estudiantes y profesionales
           </p>
 
-          <h1 className="mt-5 max-w-2xl text-4xl font-bold leading-[1.1] tracking-tight text-neutral-900 sm:text-5xl">
-            Describe tu problema académico y te conectamos con quien puede resolverlo.
+          <h1 className="mt-5 max-w-2xl text-4xl font-bold leading-[1.1] tracking-tight text-marca-600 sm:text-5xl">
+            Describe tu problema académico y te conectamos con{' '}
+            <span className="text-acento-500">quien puede resolverlo.</span>
           </h1>
 
           <p className="mt-4 max-w-xl text-lg leading-relaxed text-neutral-600">
-            Cuéntale tu duda al asistente de IA. Orbita detecta dónde te atascaste y te propone al tutor
+            Cuéntale tu duda al asistente de IA. Órbita detecta dónde te atascaste y te propone al tutor
             adecuado, con el motivo de cada recomendación.
           </p>
 
@@ -127,7 +125,7 @@ export default async function Inicio() {
               key={paso.titulo}
               className="rounded-2xl border border-neutral-200/80 bg-white/80 p-5 shadow-sm backdrop-blur"
             >
-              <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-50 text-xs font-semibold text-indigo-700">
+              <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-acento-50 text-xs font-semibold text-acento-600">
                 {i + 1}
               </span>
               <h2 className="mt-3 text-sm font-semibold text-neutral-900">{paso.titulo}</h2>
@@ -158,7 +156,7 @@ export default async function Inicio() {
 
       <footer className="border-t border-neutral-200/70 py-6">
         <p className="mx-auto w-full max-w-5xl px-6 text-xs text-neutral-500">
-          Orbita · demo de hackathon. Sin pagos reales: los créditos son simbólicos.
+          Órbita · demo de hackathon. Sin pagos reales: los créditos son simbólicos.
         </p>
       </footer>
     </div>

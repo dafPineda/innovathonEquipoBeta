@@ -1,6 +1,6 @@
 'use client';
 
-import { useAlmacenDemo } from '@/lib/almacen';
+import { useAlmacenDemo, type SolicitudEnviada } from '@/lib/almacen';
 import { TUTORES, TUTOR_POR_ID, type Tutor } from '@/lib/datos-demo';
 import { BandejaTutor } from '@/components/bandeja-tutor';
 import { Avatar, Etiqueta, Estrellas } from '@/components/ui';
@@ -14,18 +14,33 @@ import { Avatar, Etiqueta, Estrellas } from '@/components/ui';
  */
 export function PapelTutor() {
   const { valor: activo, setValor } = useAlmacenDemo<string>('tutor-activo', TUTORES[0]!.id);
+  const { valor: solicitudes } = useAlmacenDemo<SolicitudEnviada[]>('solicitudes', []);
   const tutor = TUTOR_POR_ID[activo] ?? TUTORES[0]!;
+
+  // Solicitudes sin responder por tutor, para ver de un vistazo a quién le llegó algo.
+  const pendientes: Record<string, number> = {};
+  for (const s of solicitudes) {
+    if (s.estado === 'enviada') pendientes[s.tutorId] = (pendientes[s.tutorId] ?? 0) + 1;
+  }
 
   return (
     <div className="space-y-6">
-      <SelectorTutor activo={tutor.id} onCambiar={setValor} />
+      <SelectorTutor activo={tutor.id} pendientes={pendientes} onCambiar={setValor} />
       <PerfilTutor tutor={tutor} />
       <BandejaTutor tutor={tutor} />
     </div>
   );
 }
 
-function SelectorTutor({ activo, onCambiar }: { activo: string; onCambiar: (id: string) => void }) {
+function SelectorTutor({
+  activo,
+  pendientes,
+  onCambiar,
+}: {
+  activo: string;
+  pendientes: Record<string, number>;
+  onCambiar: (id: string) => void;
+}) {
   return (
     <div className="flex flex-wrap items-center gap-2">
       <span className="mr-1 text-xs font-medium text-neutral-500">Tutor en pantalla:</span>
@@ -39,12 +54,17 @@ function SelectorTutor({ activo, onCambiar }: { activo: string; onCambiar: (id: 
             aria-pressed={seleccionado}
             className={`flex cursor-pointer items-center gap-2 rounded-full border py-1 pl-1 pr-3 text-xs font-medium transition ${
               seleccionado
-                ? 'border-indigo-400 bg-indigo-50 text-indigo-800 ring-2 ring-indigo-100'
+                ? 'border-marca-400 bg-marca-50 text-marca-800 ring-2 ring-marca-100'
                 : 'border-neutral-200 bg-white text-neutral-600 hover:border-neutral-300 hover:bg-neutral-50'
             }`}
           >
             <Avatar iniciales={t.iniciales} color={t.color} tam="sm" />
             {t.nombre.split(' ')[0]}
+            {pendientes[t.id] ? (
+              <span className="rounded-full bg-marca-600 px-1.5 text-[10px] font-semibold text-white">
+                {pendientes[t.id]}
+              </span>
+            ) : null}
           </button>
         );
       })}
@@ -60,7 +80,7 @@ function PerfilTutor({ tutor }: { tutor: Tutor }) {
         <div className="flex flex-wrap items-center gap-2">
           <h1 className="text-xl font-bold tracking-tight text-neutral-900">{tutor.nombre}</h1>
           {tutor.enLinea ? <Etiqueta tono="verde">en línea</Etiqueta> : <Etiqueta>ausente</Etiqueta>}
-          <Etiqueta tono="indigo">{tutor.creditosPorHora} créditos por hora</Etiqueta>
+          <Etiqueta tono="acento">{tutor.creditosPorHora} créditos por hora</Etiqueta>
         </div>
 
         <p className="mt-1 text-sm text-neutral-600">{tutor.titulo}</p>

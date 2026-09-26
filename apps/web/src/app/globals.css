@@ -6,6 +6,36 @@
 }
 
 /*
+ * Colores del logo de Órbita.
+ * marca  → azul marino del logotipo (#041d49 es marca-600).
+ * acento → naranja de la órbita y la estrella (#f36723 es acento-500).
+ */
+@theme {
+  --color-marca-50: #eef2fa;
+  --color-marca-100: #dde5f4;
+  --color-marca-200: #bccbe7;
+  --color-marca-300: #8fa6d2;
+  --color-marca-400: #5a78b3;
+  --color-marca-500: #2a4a85;
+  --color-marca-600: #041d49;
+  --color-marca-700: #03183d;
+  --color-marca-800: #031433;
+  --color-marca-900: #020f28;
+  --color-marca-950: #01091a;
+
+  --color-acento-50: #fff4ed;
+  --color-acento-100: #ffe5d3;
+  --color-acento-200: #fec8a6;
+  --color-acento-300: #fca370;
+  --color-acento-400: #f8813f;
+  --color-acento-500: #f36723;
+  --color-acento-600: #d9531a;
+  --color-acento-700: #b44116;
+  --color-acento-800: #8f3517;
+  --color-acento-900: #742e16;
+}
+
+/*
  * La demo se ve siempre igual, esté el equipo en modo claro u oscuro.
  * Si algún día quieres modo oscuro de verdad, empieza por aquí.
  */
@@ -15,7 +45,7 @@ html {
 
 body {
   background-color: #fafafa;
-  color: #171717;
+  color: #0b1530;
   font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;

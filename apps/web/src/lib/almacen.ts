@@ -114,6 +114,8 @@ export type SolicitudEnviada = {
   tutorNombre: string;
   tutorIniciales: string;
   tutorColor: string;
+  /** Mensaje del chat con el diagnóstico que originó la solicitud. */
+  origen: string;
   materia: string;
   resumen: string;
   /** Créditos estimados: una hora con ese tutor. */

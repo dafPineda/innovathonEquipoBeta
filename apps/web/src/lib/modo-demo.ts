@@ -31,3 +31,8 @@ export const PERSONAJES: Record<Rol, { nombre: string; iniciales: string }> = {
   estudiante: { nombre: 'Ana', iniciales: 'AN' },
   tutor: { nombre: 'Carla', iniciales: 'CA' },
 };
+
+/** Id del personaje de demo: el mismo en el panel y en /cursos (inscripciones, me gusta…). */
+export function idDemo(rol: Rol): string {
+  return `demo-${rol}`;
+}

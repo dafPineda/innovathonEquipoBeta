@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { UserButton } from '@clerk/nextjs';
 import { currentUser } from '@clerk/nextjs/server';
 import { exigirRol } from '@/lib/rol';
@@ -5,7 +6,7 @@ import { MODO_SIN_AUTH, PERSONAJES } from '@/lib/modo-demo';
 import { BotonCambiarRol } from '@/components/cambiar-rol';
 import { BandejaTutor } from '@/components/bandeja-tutor';
 import { PapelTutor } from '@/components/papel-tutor';
-import { Avatar, BannerDemo, Etiqueta, Logo } from '@/components/ui';
+import { Avatar, BannerDemo, Etiqueta, Marca } from '@/components/ui';
 
 export default async function PanelTutor() {
   await exigirRol('tutor');
@@ -17,14 +18,14 @@ export default async function PanelTutor() {
     <div className="min-h-screen bg-gradient-to-b from-neutral-50 to-emerald-50/40">
       <header className="border-b border-neutral-200/70 bg-white/80 backdrop-blur">
         <div className="mx-auto flex w-full max-w-6xl items-center justify-between px-6 py-3.5">
-          <div className="flex items-center gap-2.5">
-            <Logo />
-            <div>
-              <p className="text-sm font-semibold tracking-tight text-neutral-900">Orbita</p>
-              <p className="text-[11px] text-neutral-500">Panel del tutor</p>
-            </div>
-          </div>
+          <Marca subtitulo="Panel del tutor" />
           <div className="flex items-center gap-3">
+            <Link
+              href={MODO_SIN_AUTH ? '/cursos?como=tutor' : '/cursos'}
+              className="rounded-lg px-3 py-1.5 text-xs font-medium text-neutral-700 transition hover:bg-neutral-100"
+            >
+              Cursos
+            </Link>
             <BotonCambiarRol actual="tutor" />
             <span className="hidden text-sm text-neutral-600 sm:inline">{nombre}</span>
             {MODO_SIN_AUTH ? null : <UserButton />}

@@ -33,8 +33,9 @@ pnpm check   # lint + build
 | `/` | Portada pública. Si hay sesión, redirige al panel que corresponde. |
 | `/sign-in`, `/sign-up` | Autenticación de Clerk, en español. |
 | `/elegir-rol` | Primera vez: elige estudiante o tutor. |
-| `/estudiante` | Chat con el asistente + tutores recomendados. |
+| `/estudiante` | Pestañas *Asistente* (chat + tutores recomendados) y *Mis cursos* (cursos en los que está inscrito). `?pestana=cursos` abre la segunda. |
 | `/tutor` | Bandeja de solicitudes. |
+| `/cursos` | Muro de cursos y clases: todos lo ven, solo los tutores publican. En modo demo, `?como=tutor` entra como tutor. |
 
 ## Cómo funciona la simulación
 
@@ -127,6 +128,9 @@ rechaza el dominio `.test` en los correos.
 | `src/components/ui.tsx` | Primitivas: botón, tarjeta, etiqueta, avatar, logo, estrellas. |
 | `src/components/chat-asistente.tsx` | Chat del estudiante + diagnóstico + recomendaciones. |
 | `src/components/bandeja-tutor.tsx` | Bandeja de solicitudes del tutor. |
+| `src/components/chat-sesion.tsx` | Chat estudiante ↔ tutor que se abre al aceptar una solicitud. |
+| `src/components/muro-cursos.tsx` | Muro de cursos: publicar (tutores), me gusta, comentarios e inscripción. |
+| `src/components/pestanas-estudiante.tsx` | Pestañas del panel del estudiante: Asistente y Mis cursos. |
 | `src/components/papel-tutor.tsx` | Selector de cuentas de tutor + su perfil (demo). |
 | `src/components/cambiar-rol.tsx` | Botón de demo para alternar rol (solo desarrollo). |
 | `src/lib/modo-demo.ts` | Interruptor `DEMO_SIN_AUTH` y nombres de la demo. |

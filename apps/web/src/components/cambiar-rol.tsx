@@ -17,7 +17,7 @@ export function BotonCambiarRol({ actual }: { actual: Rol }) {
   if (!otro) return null;
 
   const clase =
-    'inline-block cursor-pointer rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-xs font-medium text-neutral-700 transition hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-800';
+    'inline-block cursor-pointer rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-xs font-medium text-neutral-700 transition hover:border-marca-300 hover:bg-marca-50 hover:text-marca-800';
 
   if (MODO_SIN_AUTH) {
     return (

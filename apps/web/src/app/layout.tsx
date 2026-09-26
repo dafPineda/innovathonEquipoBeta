@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'Orbita',
+  title: 'Órbita',
   description: 'Describe tu problema académico y te conectamos con el tutor adecuado.',
 };
 
