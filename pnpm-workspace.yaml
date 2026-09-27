@@ -2,10 +2,23 @@ packages:
   - apps/*
   - packages/*
 
-# Dependencias con script de build que sí necesitamos ejecutar.
+# Dependencias con script de build que sí se ejecutan.
+# Van en los dos formatos: `onlyBuiltDependencies` (pnpm 10) y `allowBuilds` (pnpm 11).
 onlyBuiltDependencies:
   - esbuild
   - sharp
   - unrs-resolver
   - prisma
   - '@prisma/engines'
+
+allowBuilds:
+  esbuild: true
+  sharp: true
+  unrs-resolver: true
+  prisma: true
+  '@prisma/engines': true
+
+# Un script de build no autorizado es un aviso, no un error. En Vercel
+# `pnpm install` fallaba con ERR_PNPM_IGNORED_BUILDS por un paquete de Prisma;
+# ninguno hace falta para el deploy (el cliente sale de `prisma generate`).
+strictDepBuilds: false
